@@ -24,7 +24,7 @@ const (
 // the function can be called when that flag is set
 type flagHandler struct {
 	typ int
-	fn  func(*vm)
+	fn  func(*cpu)
 }
 
 // flagHandlers is an ordered list of functions that
@@ -35,11 +35,11 @@ type flagHandler struct {
 var flagHandlers = []flagHandler{
 
 	// Outputs
-	{RO, func(v *vm) { v.bus = v.ram[v.addr] }},
-	{IO, func(v *vm) { v.bus = v.ir & 0x0F }},
-	{AO, func(v *vm) { v.bus = v.a }},
-	{CO, func(v *vm) { v.bus = v.pc }},
-	{ZO, func(v *vm) {
+	{RO, func(v *cpu) { v.bus = v.ram[v.addr] }},
+	{IO, func(v *cpu) { v.bus = v.ir & 0x0F }},
+	{AO, func(v *cpu) { v.bus = v.a }},
+	{CO, func(v *cpu) { v.bus = v.pc }},
+	{ZO, func(v *cpu) {
 		if v.flags&SU == 0 {
 			v.bus = v.a + v.b
 		} else {
@@ -48,15 +48,15 @@ var flagHandlers = []flagHandler{
 	}},
 
 	// Inputs
-	{BI, func(v *vm) { v.b = v.bus }},
-	{OI, func(v *vm) { v.out = v.bus }},
-	{MI, func(v *vm) { v.addr = v.bus }},
-	{RI, func(v *vm) { v.ram[v.addr] = v.bus }},
-	{II, func(v *vm) { v.ir = v.bus }},
-	{AI, func(v *vm) { v.a = v.bus }},
+	{BI, func(v *cpu) { v.b = v.bus }},
+	{OI, func(v *cpu) { v.out = v.bus }},
+	{MI, func(v *cpu) { v.addr = v.bus }},
+	{RI, func(v *cpu) { v.ram[v.addr] = v.bus }},
+	{II, func(v *cpu) { v.ir = v.bus }},
+	{AI, func(v *cpu) { v.a = v.bus }},
 
 	// Misc control
-	{HLT, func(v *vm) { close(v.pipeline) }},
-	{CE, func(v *vm) { v.pc++ }},
-	{J, func(v *vm) {}},
+	{HLT, func(v *cpu) { close(v.pipeline) }},
+	{CE, func(v *cpu) { v.pc++ }},
+	{J, func(v *cpu) {}},
 }

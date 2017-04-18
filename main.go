@@ -8,7 +8,7 @@ import (
 // 16 bytes of ram
 const ramSize = 16
 
-type vm struct {
+type cpu struct {
 	ram  map[uint8]uint8 // ram
 	pc   uint8           // program counter
 	addr uint8           // address register
@@ -34,8 +34,8 @@ type vm struct {
 }
 
 // run should launched as a goroutine. It runs the fetch,
-// decode and load to pipeline for the vm
-func (v *vm) run() {
+// decode and load to pipeline for the cpu
+func (v *cpu) run() {
 	for {
 		// load the program counter into the memory address register
 		v.pipeline <- CO | MI
@@ -48,8 +48,9 @@ func (v *vm) run() {
 
 		// look up the the cycles needed to execute the
 		// instruction now loaded into the instruction
-		// register
-		if cycles, ok := instructionMap[v.ir>>4]; ok {
+		// register. Only the most significant nibble
+		// is used to ifentify the instruction
+		if cycles, ok := instructionMap[v.ir&0xF0]; ok {
 			for _, cycle := range cycles {
 				v.pipeline <- cycle
 			}
@@ -57,49 +58,27 @@ func (v *vm) run() {
 	}
 }
 
-// clockPulse ranges over all of the flag handlers, calling
-// them if the corresponding control flag is set
-func (v *vm) clockPulse() {
+// clockPulse takes the next set of flags off the
+// pipeline, and then runs the flag handler for
+// each control flag that is set. It returns true
+// if the cpu is not yet halted.
+func (v *cpu) clockPulse() bool {
+	flags, ok := <-v.pipeline
+	if !ok {
+		return false
+	}
+
+	v.flags = flags
+
 	for _, h := range flagHandlers {
 		if v.flags&h.typ != 0 {
 			h.fn(v)
 		}
 	}
+	return true
 }
 
-func main() {
-
-	v := &vm{
-		ram:  initRAM(),
-		pc:   0,
-		addr: 0,
-		a:    0,
-		b:    0,
-
-		pipeline: make(chan int),
-	}
-
-	// code
-	v.ram[0] = op(LDA, 14)
-	v.ram[1] = op(ADD, 15)
-	v.ram[2] = op(OUT, 0)
-	v.ram[3] = op(HALT, 0)
-
-	// data
-	v.ram[14] = 28
-	v.ram[15] = 14
-
-	go v.run()
-
-	for cy := range v.pipeline {
-
-		v.flags = int(cy)
-		v.clockPulse()
-		fmt.Printf("%s\n", v)
-	}
-
-}
-
+// initRAM initialises a map for use as the RAM
 func initRAM() map[uint8]uint8 {
 	ram := make(map[uint8]uint8, ramSize)
 	var i uint8
@@ -110,15 +89,18 @@ func initRAM() map[uint8]uint8 {
 	return ram
 }
 
-func (v vm) String() string {
+// String returns the current state of the cpu as
+// a string.
+func (v cpu) String() string {
 	buf := &bytes.Buffer{}
 	buf.WriteString("-----------------\n")
-	//buf.WriteString("RAM:\n")
 
+	//buf.WriteString("RAM:\n")
 	//var i uint8
 	//for i = 0; i < ramSize; i++ {
 	//fmt.Fprintf(buf, "  %02d: %#02x\n", i, v.ram[i])
 	//}
+
 	fmt.Fprintf(buf, "  PC: %02d\n", v.pc)
 	fmt.Fprintf(buf, "ADDR: %02d\n", v.addr)
 	fmt.Fprintf(buf, "  IR: %#02x\n", v.ir)
@@ -129,6 +111,42 @@ func (v vm) String() string {
 	return buf.String()
 }
 
-func op(instr uint8, arg uint8) uint8 {
-	return (instr << 4) | (arg & 0x0F)
+func main() {
+
+	// initialise the cycle pipeline and the RAM
+	v := &cpu{
+		ram:      initRAM(),
+		pipeline: make(chan int),
+	}
+
+	// code
+	// load from address 14 to the A register
+	v.ram[0] = op(LDA, 14)
+
+	// add from address 15 to the A register
+	v.ram[1] = op(ADD, 15)
+
+	// load from the A register to the output register
+	v.ram[2] = op(OUT, 0)
+
+	// halt the CPU
+	v.ram[3] = op(HALT, 0)
+
+	// data
+	v.ram[14] = 28
+	v.ram[15] = 14
+
+	// start filling the cycle pipeline
+	go v.run()
+
+	for {
+		// v.clockPulse() returns false when
+		// the CPU is halted
+		if v.clockPulse() {
+			fmt.Printf("%s\n", v)
+		} else {
+			break
+		}
+	}
+
 }

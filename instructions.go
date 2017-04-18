@@ -1,33 +1,48 @@
 package main
 
-// each instruction is
+// the most significant nibble is all that's
+// used to identify an instruction
 const (
-	LDA  uint8 = 0x1
-	ADD  uint8 = 0x2
-	OUT  uint8 = 0xE
-	HALT uint8 = 0xF
+	LDA  uint8 = 0x10
+	ADD  uint8 = 0x20
+	OUT  uint8 = 0xE0
+	HALT uint8 = 0xF0
 )
 
-// each instruction is a slice of bitfields
-// representing which control lines should
-// be set for that cycle
-type instruction []int
+// instructionMap is a lookup table that defines
+// how the control flags should be set for each
+// cycle. Instructions can take a variable number
+// of cycles.
+var instructionMap = map[uint8][]int{
 
-// instruction definitions
-var instructionMap = map[uint8]instruction{
+	// load from an address RAM into the A register
 	LDA: {
-		IO | MI,
-		RO | AI,
+		IO | MI, // instruction register to memory address register
+		RO | AI, // RAM to A register
 	},
+
+	// add the number from an address in RAM to the A register,
+	// via the B register
 	ADD: {
-		IO | MI,
-		RO | BI,
-		ZO | AI,
+		IO | MI, // instruction register to memory address register
+		RO | BI, // RAM to B register
+		ZO | AI, // sum to A register
 	},
+
+	// load from the A register to the output register
 	OUT: {
-		AO | OI,
+		AO | OI, // A register to output register
 	},
+
+	// halt the CPU
 	HALT: {
-		HLT,
+		HLT, // Halt :)
 	},
+}
+
+// op is a convenience function for combining an
+// instruction and an argument. E.g.
+//   op(LDA, 15) -> 0x1E
+func op(instr uint8, arg uint8) uint8 {
+	return instr | (arg & 0x0F)
 }
