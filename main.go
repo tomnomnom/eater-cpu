@@ -32,24 +32,24 @@ type cpu struct {
 
 // run should launched as a goroutine. It runs the fetch,
 // decode, execute cycle
-func (v *cpu) run() {
+func (c *cpu) run() {
 	for {
 		// load the program counter into the memory address register
-		v.cycle(CO | MI)
+		c.cycle(CO | MI)
 
 		// load ram into the intruction register
-		v.cycle(RO | II)
+		c.cycle(RO | II)
 
 		// increment the counter
-		v.cycle(CE)
+		c.cycle(CE)
 
 		// look up the the cycles needed to execute the
 		// instruction now loaded into the instruction
 		// register. Only the most significant nibble
 		// is used to ifentify the instruction
-		if cycles, ok := instructionMap[v.ir&0xF0]; ok {
+		if cycles, ok := instructionMap[c.ir&0xF0]; ok {
 			for _, flags := range cycles {
-				v.cycle(flags)
+				c.cycle(flags)
 			}
 		}
 	}
@@ -57,19 +57,19 @@ func (v *cpu) run() {
 
 // cycle accepts some flags to set and then calls
 // all of the corresponding flag handlers
-func (v *cpu) cycle(flags int) {
-	<-v.clock
+func (c *cpu) cycle(flags int) {
+	<-c.clock
 
-	v.flags = flags
+	c.flags = flags
 
 	for _, h := range flagHandlers {
-		if v.flags&h.typ != 0 {
-			h.fn(v)
+		if c.flags&h.typ != 0 {
+			h.fn(c)
 		}
 	}
 
 	// we must signal that the cycle has finished
-	v.cycleDone <- struct{}{}
+	c.cycleDone <- struct{}{}
 }
 
 // initRAM initialises a map for use as the RAM
@@ -87,24 +87,23 @@ func (c *cpu) isHalted() bool {
 	return c.flags&HLT != 0
 }
 
-// String returns the current state of the cpu as
-// a string.
-func (v cpu) String() string {
+// String returns the current state of the cpu as a string.
+func (c *cpu) String() string {
 	buf := &bytes.Buffer{}
 	buf.WriteString("-------------------------\n")
 
-	fmt.Fprintf(buf, "  BUS: %08b (%#02X)\n", v.bus, v.bus)
-	fmt.Fprintf(buf, "   PC: %08b (%d)\n", v.pc, v.pc)
-	fmt.Fprintf(buf, " ADDR: %08b (%d)\n", v.addr, v.addr)
-	fmt.Fprintf(buf, "  RAM: %08b (%d)\n", v.ram[v.addr], v.ram[v.addr])
-	fmt.Fprintf(buf, "   IR: %08b (%s %d)\n", v.ir, instructionNames[v.ir&0xF0], v.ir&0x0F)
-	fmt.Fprintf(buf, "    A: %08b (%d)\n", v.a, v.a)
-	fmt.Fprintf(buf, "    B: %08b (%d)\n", v.b, v.b)
-	fmt.Fprintf(buf, "  OUT: %08b (%d)\n", v.out, v.out)
+	fmt.Fprintf(buf, "  BUS: %08b (%#02X)\n", c.bus, c.bus)
+	fmt.Fprintf(buf, "   PC: %08b (%d)\n", c.pc, c.pc)
+	fmt.Fprintf(buf, " ADDR: %08b (%d)\n", c.addr, c.addr)
+	fmt.Fprintf(buf, "  RAM: %08b (%d)\n", c.ram[c.addr], c.ram[c.addr])
+	fmt.Fprintf(buf, "   IR: %08b (%s %d)\n", c.ir, instructionNames[c.ir&0xF0], c.ir&0x0F)
+	fmt.Fprintf(buf, "    A: %08b (%d)\n", c.a, c.a)
+	fmt.Fprintf(buf, "    B: %08b (%d)\n", c.b, c.b)
+	fmt.Fprintf(buf, "  OUT: %08b (%d)\n", c.out, c.out)
 
 	buf.WriteString("FLAGS: ")
 	for flag, name := range flagNames {
-		if v.flags&flag != 0 {
+		if c.flags&flag != 0 {
 			fmt.Fprintf(buf, "%s ", name)
 		}
 	}
@@ -117,7 +116,7 @@ func (v cpu) String() string {
 func main() {
 
 	// initialise the RAM and the clock
-	v := &cpu{
+	c := &cpu{
 		ram:       initRAM(),
 		clock:     make(chan interface{}),
 		cycleDone: make(chan interface{}),
@@ -125,30 +124,36 @@ func main() {
 
 	// code
 	// load from address 14 to the A register
-	v.ram[0] = op(LDA, 14)
+	c.ram[0] = op(LDA, 14)
 
 	// add from address 15 to the A register
-	v.ram[1] = op(ADD, 15)
+	c.ram[1] = op(ADD, 15)
 
 	// load from the A register to the output register
-	v.ram[2] = op(OUT, 0)
+	c.ram[2] = op(OUT, 0)
 
 	// halt the CPU
-	v.ram[3] = op(HALT, 0)
+	c.ram[3] = op(HALT, 0)
 
 	// data
-	v.ram[14] = 28
-	v.ram[15] = 14
+	c.ram[14] = 28
+	c.ram[15] = 14
 
 	// start the CPU
-	go v.run()
+	go c.run()
 
 	for {
-		if v.isHalted() {
+		if c.isHalted() {
 			break
 		}
-		v.clock <- struct{}{}
-		<-v.cycleDone
-		fmt.Printf("%s\n", v)
+
+		// pulse the clock
+		c.clock <- struct{}{}
+
+		// wait for the cycle to finish
+		<-c.cycleDone
+
+		// dump the state of the cpu
+		fmt.Printf("%s\n", c)
 	}
 }

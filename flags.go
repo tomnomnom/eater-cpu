@@ -53,28 +53,28 @@ type flagHandler struct {
 var flagHandlers = []flagHandler{
 
 	// Outputs
-	{RO, func(v *cpu) { v.bus = v.ram[v.addr] }},
-	{IO, func(v *cpu) { v.bus = v.ir & 0x0F }},
-	{AO, func(v *cpu) { v.bus = v.a }},
-	{CO, func(v *cpu) { v.bus = v.pc }},
-	{ZO, func(v *cpu) {
-		if v.flags&SU == 0 {
-			v.bus = v.a + v.b
+	{RO, func(c *cpu) { c.bus = c.ram[c.addr] }},
+	{IO, func(c *cpu) { c.bus = c.ir & 0x0F }},
+	{AO, func(c *cpu) { c.bus = c.a }},
+	{CO, func(c *cpu) { c.bus = c.pc }},
+	{ZO, func(c *cpu) {
+		if c.flags&SU == 0 {
+			c.bus = c.a + c.b
 		} else {
-			v.bus = v.a - v.b
+			c.bus = c.a - c.b
 		}
 	}},
 
 	// Inputs
-	{BI, func(v *cpu) { v.b = v.bus }},
-	{OI, func(v *cpu) { v.out = v.bus }},
-	{MI, func(v *cpu) { v.addr = v.bus }},
-	{RI, func(v *cpu) { v.ram[v.addr] = v.bus }},
-	{II, func(v *cpu) { v.ir = v.bus }},
-	{AI, func(v *cpu) { v.a = v.bus }},
+	{BI, func(c *cpu) { c.b = c.bus }},
+	{OI, func(c *cpu) { c.out = c.bus }},
+	{MI, func(c *cpu) { c.addr = c.bus }},
+	{RI, func(c *cpu) { c.ram[c.addr] = c.bus }},
+	{II, func(c *cpu) { c.ir = c.bus }},
+	{AI, func(c *cpu) { c.a = c.bus }},
 
 	// Misc control
-	{HLT, func(v *cpu) {}},
-	{CE, func(v *cpu) { v.pc++ }},
-	{J, func(v *cpu) {}},
+	{HLT, func(c *cpu) {}},
+	{CE, func(c *cpu) { c.pc++ }},
+	{J, func(c *cpu) {}},
 }
