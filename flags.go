@@ -20,6 +20,24 @@ const (
 	J               // Jump
 )
 
+var flagNames = map[int]string{
+	HLT: "HLT",
+	MI:  "MI",
+	RI:  "RI",
+	RO:  "RO",
+	IO:  "IO",
+	II:  "II",
+	AI:  "AI",
+	AO:  "AO",
+	ZO:  "ZO",
+	SU:  "SU",
+	BI:  "BI",
+	OI:  "OI",
+	CE:  "CE",
+	CO:  "CO",
+	J:   "J",
+}
+
 // a flagHandler associates a function with a flag so that
 // the function can be called when that flag is set
 type flagHandler struct {
@@ -56,7 +74,7 @@ var flagHandlers = []flagHandler{
 	{AI, func(v *cpu) { v.a = v.bus }},
 
 	// Misc control
-	{HLT, func(v *cpu) { close(v.pipeline) }},
+	{HLT, func(v *cpu) {}},
 	{CE, func(v *cpu) { v.pc++ }},
 	{J, func(v *cpu) {}},
 }

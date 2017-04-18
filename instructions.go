@@ -3,11 +3,20 @@ package main
 // the most significant nibble is all that's
 // used to identify an instruction
 const (
+	NOP  uint8 = 0x00
 	LDA  uint8 = 0x10
 	ADD  uint8 = 0x20
 	OUT  uint8 = 0xE0
 	HALT uint8 = 0xF0
 )
+
+var instructionNames = map[uint8]string{
+	NOP:  "NOP",
+	LDA:  "LDA",
+	ADD:  "ADD",
+	OUT:  "OUT",
+	HALT: "HALT",
+}
 
 // instructionMap is a lookup table that defines
 // how the control flags should be set for each
