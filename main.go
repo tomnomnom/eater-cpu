@@ -14,6 +14,60 @@ const (
 	HALT uint8 = 0xF
 )
 
+const (
+	HLT = 1 << iota // Halt
+	MI              // Memory address register in
+	RI              // RAM In
+	RO              // RAM Out
+	IO              // Instruction Register Out
+	II              // Instruction Register In
+	AI              // A Register In
+	AO              // A Register Out
+	ZO              // Sum Out
+	SU              // Subtract
+	BI              // B Register In
+	OI              // Output Register In
+	CE              // Counter Enable
+	CO              // Counter Out
+	J               // Jump
+)
+
+type ctrlHandler struct {
+	typ int
+	fn  func(*vm)
+}
+
+// ctrlHandlers is an ordered list of control signal handlers
+var ctrlHandlers = []ctrlHandler{
+	// Outputs
+	{RO, func(v *vm) { v.bus = v.ram[v.addr] }},
+	{IO, func(v *vm) { v.bus = v.ir & 0x0F }},
+	{AO, func(v *vm) { v.bus = v.a }},
+	{CO, func(v *vm) { v.bus = v.pc }},
+	{ZO, func(v *vm) {
+		if v.ctrl&SU == 0 {
+			v.bus = v.a + v.b
+		} else {
+			v.bus = v.a - v.b
+		}
+	}},
+
+	// Inputs
+	{BI, func(v *vm) { v.b = v.bus }},
+	{OI, func(v *vm) { v.o = v.bus }},
+	{MI, func(v *vm) { v.addr = v.bus }},
+	{RI, func(v *vm) { v.ram[v.addr] = v.bus }},
+	{II, func(v *vm) { v.ir = v.bus }},
+	{AI, func(v *vm) { v.a = v.bus }},
+
+	// Misc control
+	{HLT, func(v *vm) { close(v.pipeline) }},
+	{CE, func(v *vm) { v.pc++ }},
+	{J, func(v *vm) {}},
+}
+
+type cycle int
+
 type vm struct {
 	ram  map[uint8]uint8
 	pc   uint8
@@ -22,91 +76,44 @@ type vm struct {
 	a    uint8
 	b    uint8
 	bus  uint8
+	o    uint8
 
-	// subtract flag
-	sub bool
+	ctrl int
 
 	pipeline chan cycle
 }
 
-type signal func(*vm)
-type cycle []signal
+// each instruction is a slice of cycles
+type instruction []cycle
 
-type instr []cycle
-
-func pcOut(v *vm) {
-	v.bus = v.pc
-}
-
-func addrIn(v *vm) {
-	v.addr = v.bus
-}
-
-func ramOut(v *vm) {
-	v.bus = v.ram[v.addr]
-}
-
-func irIn(v *vm) {
-	v.ir = v.bus
-}
-
-func irOut(v *vm) {
-	v.bus = v.ir & 0x0F
-}
-
-func pcInc(v *vm) {
-	v.pc++
-}
-
-func aIn(v *vm) {
-	v.a = v.bus
-}
-
-func bIn(v *vm) {
-	v.b = v.bus
-}
-
-func sumOut(v *vm) {
-
-	if v.sub {
-		v.bus = v.a - v.b
-	} else {
-		v.bus = v.a + v.b
-	}
-
-	// calling sumOut resets the subtract flag
-	v.sub = false
-
-}
-
-func sub(v *vm) {
-	v.sub = true
-}
-
-var instrs = map[uint8]instr{
+// instruction definitions
+var instructionMap = map[uint8]instruction{
 	LDA: {
-		{irOut, addrIn},
-		{ramOut, aIn},
+		IO | MI,
+		RO | AI,
 	},
 	ADD: {
-		{irOut, addrIn},
-		{ramOut, bIn},
-		{sumOut, aIn},
+		IO | MI,
+		RO | BI,
+		ZO | AI,
+	},
+	OUT: {
+		AO | OI,
 	},
 	HALT: {
-		{halt},
+		HLT,
 	},
 }
 
 func (v *vm) run() {
 	for {
 		// fetch
-		v.pipeline <- cycle{pcOut, addrIn}
-		v.pipeline <- cycle{ramOut, irIn}
-		v.pipeline <- cycle{pcInc}
+		v.pipeline <- cycle(CO | MI)
+		v.pipeline <- cycle(RO | II)
+		v.pipeline <- cycle(CE)
 
 		// decode
-		if instr, ok := instrs[v.ir>>4]; ok {
+		if instr, ok := instructionMap[v.ir>>4]; ok {
 			for _, cycle := range instr {
 
 				// execute
@@ -116,8 +123,19 @@ func (v *vm) run() {
 	}
 }
 
+func irOut(v *vm) {
+	v.bus = v.ir & 0x0F
+}
 func halt(v *vm) {
 	close(v.pipeline)
+}
+
+func (v *vm) update() {
+	for _, h := range ctrlHandlers {
+		if v.ctrl&h.typ != 0 {
+			h.fn(v)
+		}
+	}
 }
 
 func main() {
@@ -145,13 +163,10 @@ func main() {
 	go v.run()
 
 	for cy := range v.pipeline {
-		fmt.Printf("%s\n", v)
 
-		// there is often multiple signals to set
-		// for a given cycle
-		for _, sig := range cy {
-			sig(v)
-		}
+		v.ctrl = int(cy)
+		v.update()
+		fmt.Printf("%s\n", v)
 	}
 
 }
@@ -169,16 +184,18 @@ func initRAM() map[uint8]uint8 {
 func (v vm) String() string {
 	buf := &bytes.Buffer{}
 	buf.WriteString("-----------------\n")
-	buf.WriteString("RAM:\n")
+	//buf.WriteString("RAM:\n")
 
-	var i uint8
-	for i = 0; i < ramSize; i++ {
-		fmt.Fprintf(buf, "  %02d: %#02x\n", i, v.ram[i])
-	}
-	fmt.Fprintf(buf, "PC:\n  %02d\n", v.pc)
-	fmt.Fprintf(buf, "ADDR:\n  %02d\n", v.addr)
-	fmt.Fprintf(buf, "IR:\n  %#02x\n", v.ir)
-	fmt.Fprintf(buf, "A:\n  %#02x\n", v.a)
+	//var i uint8
+	//for i = 0; i < ramSize; i++ {
+	//fmt.Fprintf(buf, "  %02d: %#02x\n", i, v.ram[i])
+	//}
+	fmt.Fprintf(buf, "  PC: %02d\n", v.pc)
+	fmt.Fprintf(buf, "ADDR: %02d\n", v.addr)
+	fmt.Fprintf(buf, "  IR: %#02x\n", v.ir)
+	fmt.Fprintf(buf, "   A: %#02x\n", v.a)
+	fmt.Fprintf(buf, "   B: %#02x\n", v.b)
+	fmt.Fprintf(buf, " OUT: %#02x\n", v.o)
 
 	return buf.String()
 }
