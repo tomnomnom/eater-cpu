@@ -5,134 +5,63 @@ import (
 	"fmt"
 )
 
+// 16 bytes of ram
 const ramSize = 16
 
-const (
-	LDA  uint8 = 0x1
-	ADD  uint8 = 0x2
-	OUT  uint8 = 0xE
-	HALT uint8 = 0xF
-)
-
-const (
-	HLT = 1 << iota // Halt
-	MI              // Memory address register in
-	RI              // RAM In
-	RO              // RAM Out
-	IO              // Instruction Register Out
-	II              // Instruction Register In
-	AI              // A Register In
-	AO              // A Register Out
-	ZO              // Sum Out
-	SU              // Subtract
-	BI              // B Register In
-	OI              // Output Register In
-	CE              // Counter Enable
-	CO              // Counter Out
-	J               // Jump
-)
-
-type ctrlHandler struct {
-	typ int
-	fn  func(*vm)
-}
-
-// ctrlHandlers is an ordered list of control signal handlers
-var ctrlHandlers = []ctrlHandler{
-	// Outputs
-	{RO, func(v *vm) { v.bus = v.ram[v.addr] }},
-	{IO, func(v *vm) { v.bus = v.ir & 0x0F }},
-	{AO, func(v *vm) { v.bus = v.a }},
-	{CO, func(v *vm) { v.bus = v.pc }},
-	{ZO, func(v *vm) {
-		if v.ctrl&SU == 0 {
-			v.bus = v.a + v.b
-		} else {
-			v.bus = v.a - v.b
-		}
-	}},
-
-	// Inputs
-	{BI, func(v *vm) { v.b = v.bus }},
-	{OI, func(v *vm) { v.o = v.bus }},
-	{MI, func(v *vm) { v.addr = v.bus }},
-	{RI, func(v *vm) { v.ram[v.addr] = v.bus }},
-	{II, func(v *vm) { v.ir = v.bus }},
-	{AI, func(v *vm) { v.a = v.bus }},
-
-	// Misc control
-	{HLT, func(v *vm) { close(v.pipeline) }},
-	{CE, func(v *vm) { v.pc++ }},
-	{J, func(v *vm) {}},
-}
-
-type cycle int
-
 type vm struct {
-	ram  map[uint8]uint8
-	pc   uint8
-	addr uint8
-	ir   uint8
-	a    uint8
-	b    uint8
-	bus  uint8
-	o    uint8
+	ram  map[uint8]uint8 // ram
+	pc   uint8           // program counter
+	addr uint8           // address register
+	ir   uint8           // instruction register
+	a    uint8           // a register
+	b    uint8           // b register
+	bus  uint8           // bus
+	out  uint8           // output register
 
-	ctrl int
+	// flags holds a bitfield representing which
+	// control flags are set. E.g. to set the
+	// instruction register out and the memory
+	// address register in, it would be set to:
+	//
+	//   IO | MI
+	flags int
 
-	pipeline chan cycle
+	// pipeline is a channel of ints, where
+	// each int is actually just a bitfield
+	// of which control flags should be set
+	// for that cycle.
+	pipeline chan int
 }
 
-// each instruction is a slice of cycles
-type instruction []cycle
-
-// instruction definitions
-var instructionMap = map[uint8]instruction{
-	LDA: {
-		IO | MI,
-		RO | AI,
-	},
-	ADD: {
-		IO | MI,
-		RO | BI,
-		ZO | AI,
-	},
-	OUT: {
-		AO | OI,
-	},
-	HALT: {
-		HLT,
-	},
-}
-
+// run should launched as a goroutine. It runs the fetch,
+// decode and load to pipeline for the vm
 func (v *vm) run() {
 	for {
-		// fetch
-		v.pipeline <- cycle(CO | MI)
-		v.pipeline <- cycle(RO | II)
-		v.pipeline <- cycle(CE)
+		// load the program counter into the memory address register
+		v.pipeline <- CO | MI
 
-		// decode
-		if instr, ok := instructionMap[v.ir>>4]; ok {
-			for _, cycle := range instr {
+		// load ram into the intruction register
+		v.pipeline <- RO | II
 
-				// execute
+		// increment the counter
+		v.pipeline <- CE
+
+		// look up the the cycles needed to execute the
+		// instruction now loaded into the instruction
+		// register
+		if cycles, ok := instructionMap[v.ir>>4]; ok {
+			for _, cycle := range cycles {
 				v.pipeline <- cycle
 			}
 		}
 	}
 }
 
-func irOut(v *vm) {
-	v.bus = v.ir & 0x0F
-}
-func halt(v *vm) {
-	close(v.pipeline)
-}
-
-func (v *vm) update() {
-	for _, h := range ctrlHandlers {
-		if v.ctrl&h.typ != 0 {
+// clockPulse ranges over all of the flag handlers, calling
+// them if the corresponding control flag is set
+func (v *vm) clockPulse() {
+	for _, h := range flagHandlers {
+		if v.flags&h.typ != 0 {
 			h.fn(v)
 		}
 	}
@@ -147,7 +76,7 @@ func main() {
 		a:    0,
 		b:    0,
 
-		pipeline: make(chan cycle),
+		pipeline: make(chan int),
 	}
 
 	// code
@@ -164,8 +93,8 @@ func main() {
 
 	for cy := range v.pipeline {
 
-		v.ctrl = int(cy)
-		v.update()
+		v.flags = int(cy)
+		v.clockPulse()
 		fmt.Printf("%s\n", v)
 	}
 
@@ -193,9 +122,9 @@ func (v vm) String() string {
 	fmt.Fprintf(buf, "  PC: %02d\n", v.pc)
 	fmt.Fprintf(buf, "ADDR: %02d\n", v.addr)
 	fmt.Fprintf(buf, "  IR: %#02x\n", v.ir)
-	fmt.Fprintf(buf, "   A: %#02x\n", v.a)
-	fmt.Fprintf(buf, "   B: %#02x\n", v.b)
-	fmt.Fprintf(buf, " OUT: %#02x\n", v.o)
+	fmt.Fprintf(buf, "   A: %#d\n", v.a)
+	fmt.Fprintf(buf, "   B: %#d\n", v.b)
+	fmt.Fprintf(buf, " OUT: %#d\n", v.out)
 
 	return buf.String()
 }
