@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/fatih/color"
 )
 
 // 16 bytes of ram
@@ -93,14 +95,14 @@ func (c *cpu) String() string {
 	buf := &bytes.Buffer{}
 	buf.WriteString("-------------------------\n")
 
-	fmt.Fprintf(buf, "  BUS: %08b (%#02X)\n", c.bus, c.bus)
-	fmt.Fprintf(buf, "   PC: %08b (%d)\n", c.pc, c.pc)
-	fmt.Fprintf(buf, " ADDR: %08b (%d)\n", c.addr, c.addr)
-	fmt.Fprintf(buf, "  RAM: %08b (%d)\n", c.ram[c.addr], c.ram[c.addr])
-	fmt.Fprintf(buf, "   IR: %08b (%s %d)\n", c.ir, instructionNames[c.ir&0xF0], c.ir&0x0F)
-	fmt.Fprintf(buf, "    A: %08b (%d)\n", c.a, c.a)
-	fmt.Fprintf(buf, "    B: %08b (%d)\n", c.b, c.b)
-	fmt.Fprintf(buf, "  OUT: %08b (%d)\n", c.out, c.out)
+	fmt.Fprintf(buf, "  BUS: %s (%#02X)\n", binString(c.bus), c.bus)
+	fmt.Fprintf(buf, "   PC: %s (%d)\n", binString(c.pc), c.pc)
+	fmt.Fprintf(buf, " ADDR: %s (%d)\n", binString(c.addr), c.addr)
+	fmt.Fprintf(buf, "  RAM: %s (%d)\n", binString(c.ram[c.addr]), c.ram[c.addr])
+	fmt.Fprintf(buf, "   IR: %s (%s %d)\n", binString(c.ir), instructionNames[c.ir&0xF0], c.ir&0x0F)
+	fmt.Fprintf(buf, "    A: %s (%d)\n", binString(c.a), c.a)
+	fmt.Fprintf(buf, "    B: %s (%d)\n", binString(c.b), c.b)
+	fmt.Fprintf(buf, "  OUT: %s (%d)\n", binString(c.out), c.out)
 
 	buf.WriteString("FLAGS: ")
 	for flag, name := range flagNames {
@@ -111,6 +113,27 @@ func (c *cpu) String() string {
 	buf.WriteString("\n")
 	buf.WriteString("-------------------------\n")
 
+	return buf.String()
+}
+
+func binString(n uint8) string {
+	red := color.New(color.FgRed).FprintfFunc()
+
+	buf := &bytes.Buffer{}
+	i := uint8(8)
+	for {
+		i--
+
+		if n>>i&1 == 0 {
+			red(buf, "○")
+		} else {
+			red(buf, "●")
+		}
+
+		if i == 0 {
+			break
+		}
+	}
 	return buf.String()
 }
 
