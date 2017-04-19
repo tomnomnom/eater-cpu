@@ -6,6 +6,7 @@ const (
 	NOP  uint8 = 0x00
 	LDA  uint8 = 0x10
 	ADD  uint8 = 0x20
+	JMP  uint8 = 0x30
 	OUT  uint8 = 0xE0
 	HALT uint8 = 0xF0
 )
@@ -14,6 +15,7 @@ var instructionNames = map[uint8]string{
 	NOP:  "NOP",
 	LDA:  "LDA",
 	ADD:  "ADD",
+	JMP:  "ADD",
 	OUT:  "OUT",
 	HALT: "HALT",
 }
@@ -36,6 +38,12 @@ var instructionMap = map[uint8][]int{
 		IO | MI, // instruction register to memory address register
 		RO | BI, // RAM to B register
 		ZO | AI, // sum to A register
+	},
+
+	// set the program counter to the least significant
+	// nibble of the instruction register
+	JMP: {
+		IO | J,
 	},
 
 	// load from the A register to the output register

@@ -83,6 +83,7 @@ func initRAM() map[uint8]uint8 {
 	return ram
 }
 
+// isHalted reports if the halt flag is set
 func (c *cpu) isHalted() bool {
 	return c.flags&HLT != 0
 }

@@ -68,7 +68,7 @@ var flagHandlers = []flagHandler{
 	// Inputs
 	{BI, func(c *cpu) { c.b = c.bus }},
 	{OI, func(c *cpu) { c.out = c.bus }},
-	{MI, func(c *cpu) { c.addr = c.bus }},
+	{MI, func(c *cpu) { c.addr = c.bus & 0x0F }},
 	{RI, func(c *cpu) { c.ram[c.addr] = c.bus }},
 	{II, func(c *cpu) { c.ir = c.bus }},
 	{AI, func(c *cpu) { c.a = c.bus }},
@@ -76,5 +76,5 @@ var flagHandlers = []flagHandler{
 	// Misc control
 	{HLT, func(c *cpu) {}},
 	{CE, func(c *cpu) { c.pc++ }},
-	{J, func(c *cpu) {}},
+	{J, func(c *cpu) { c.pc = c.bus }},
 }
