@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
+	"os"
 
 	"github.com/fatih/color"
 )
@@ -95,14 +97,14 @@ func (c *cpu) String() string {
 	buf := &bytes.Buffer{}
 	buf.WriteString("-------------------------\n")
 
-	fmt.Fprintf(buf, "  BUS: %s (%#02X)\n", binString(c.bus), c.bus)
-	fmt.Fprintf(buf, "   PC: %s (%d)\n", binString(c.pc), c.pc)
-	fmt.Fprintf(buf, " ADDR: %s (%d)\n", binString(c.addr), c.addr)
-	fmt.Fprintf(buf, "  RAM: %s (%d)\n", binString(c.ram[c.addr]), c.ram[c.addr])
-	fmt.Fprintf(buf, "   IR: %s (%s %d)\n", binString(c.ir), instructionNames[c.ir&0xF0], c.ir&0x0F)
-	fmt.Fprintf(buf, "    A: %s (%d)\n", binString(c.a), c.a)
-	fmt.Fprintf(buf, "    B: %s (%d)\n", binString(c.b), c.b)
-	fmt.Fprintf(buf, "  OUT: %s (%d)\n", binString(c.out), c.out)
+	fmt.Fprintf(buf, "  BUS: %s (%d)\n", ledString(c.bus), c.bus)
+	fmt.Fprintf(buf, "   PC: %s (%d)\n", ledString(c.pc), c.pc)
+	fmt.Fprintf(buf, " ADDR: %s (%d)\n", ledString(c.addr), c.addr)
+	fmt.Fprintf(buf, "  RAM: %s (%d)\n", ledString(c.ram[c.addr]), c.ram[c.addr])
+	fmt.Fprintf(buf, "   IR: %s (%s %d)\n", ledString(c.ir), instructionNames[c.ir&0xF0], c.ir&0x0F)
+	fmt.Fprintf(buf, "    A: %s (%d)\n", ledString(c.a), c.a)
+	fmt.Fprintf(buf, "    B: %s (%d)\n", ledString(c.b), c.b)
+	fmt.Fprintf(buf, "  OUT: %s (%d)\n", ledString(c.out), c.out)
 
 	buf.WriteString("FLAGS: ")
 	for flag, name := range flagNames {
@@ -116,7 +118,7 @@ func (c *cpu) String() string {
 	return buf.String()
 }
 
-func binString(n uint8) string {
+func ledString(n uint8) string {
 	red := color.New(color.FgRed).FprintfFunc()
 
 	buf := &bytes.Buffer{}
@@ -139,32 +141,39 @@ func binString(n uint8) string {
 
 func main() {
 
+	flag.Parse()
+
+	ramfile := flag.Arg(0)
+	if ramfile == "" {
+		fmt.Println("usage: eater-cpu <ramfile>")
+		os.Exit(1)
+	}
+
+	f, err := os.Open(ramfile)
+	if err != nil {
+		fmt.Printf("failed to open ramfile (%s)\n", err)
+		os.Exit(2)
+	}
+
+	ram, err := parseRAMFile(f)
+	if err != nil {
+		fmt.Printf("failed to parse ramfile (%s)\n", err)
+		os.Exit(3)
+	}
+
 	// initialise the RAM and the clock
 	c := &cpu{
-		ram:       initRAM(),
+		ram:       ram,
 		clock:     make(chan interface{}),
 		cycleDone: make(chan interface{}),
 	}
 
-	// code
-	// load from address 14 to the A register
-	c.ram[0] = op(LDA, 14)
-
-	// add from address 15 to the A register
-	c.ram[1] = op(ADD, 15)
-
-	// load from the A register to the output register
-	c.ram[2] = op(OUT, 0)
-
-	// halt the CPU
-	c.ram[3] = op(HALT, 0)
-
-	// data
-	c.ram[14] = 28
-	c.ram[15] = 14
-
 	// start the CPU
 	go c.run()
+
+	// open stdin so the user can hit return to
+	// pulse the clock
+	//in := bufio.NewReader(os.Stdin)
 
 	for {
 		if c.isHalted() {
@@ -179,5 +188,8 @@ func main() {
 
 		// dump the state of the cpu
 		fmt.Printf("%s\n", c)
+
+		// wait for user input
+		//_, _ = in.ReadString('\n')
 	}
 }
