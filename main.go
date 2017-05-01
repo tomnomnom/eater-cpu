@@ -41,11 +41,8 @@ func (c *cpu) run() {
 		// load the program counter into the memory address register
 		c.cycle(CO | MI)
 
-		// load ram into the intruction register
-		c.cycle(RO | II)
-
-		// increment the counter
-		c.cycle(CE)
+		// load ram into the intruction register, increment the counter
+		c.cycle(RO | II | CE)
 
 		// look up the the cycles needed to execute the
 		// instruction now loaded into the instruction
