@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
@@ -138,6 +139,9 @@ func ledString(n uint8) string {
 
 func main() {
 
+	var singleStep bool
+	flag.BoolVar(&singleStep, "single-step", false, "Hit return to single-step through the code")
+
 	flag.Parse()
 
 	ramfile := flag.Arg(0)
@@ -170,7 +174,7 @@ func main() {
 
 	// open stdin so the user can hit return to
 	// pulse the clock
-	//in := bufio.NewReader(os.Stdin)
+	in := bufio.NewReader(os.Stdin)
 
 	for {
 		if c.isHalted() {
@@ -187,6 +191,8 @@ func main() {
 		fmt.Printf("%s\n", c)
 
 		// wait for user input
-		//_, _ = in.ReadString('\n')
+		if singleStep {
+			_, _ = in.ReadString('\n')
+		}
 	}
 }
