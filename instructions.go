@@ -6,7 +6,9 @@ const (
 	NOP  uint8 = 0x00
 	LDA  uint8 = 0x10
 	ADD  uint8 = 0x20
-	JMP  uint8 = 0x30
+	SUB  uint8 = 0x30
+	STA  uint8 = 0x40
+	JMP  uint8 = 0x50
 	OUT  uint8 = 0xE0
 	HALT uint8 = 0xF0
 )
@@ -15,6 +17,8 @@ var instructionNames = map[uint8]string{
 	NOP:  "NOP",
 	LDA:  "LDA",
 	ADD:  "ADD",
+	SUB:  "SUB",
+	STA:  "STA",
 	JMP:  "JMP",
 	OUT:  "OUT",
 	HALT: "HALT",
@@ -25,6 +29,9 @@ var instructionNames = map[uint8]string{
 // cycle. Instructions can take a variable number
 // of cycles.
 var instructionMap = map[uint8][]int{
+
+	// no-op
+	NOP: {},
 
 	// load from an address RAM into the A register
 	LDA: {
@@ -38,6 +45,19 @@ var instructionMap = map[uint8][]int{
 		IO | MI, // instruction register to memory address register
 		RO | BI, // RAM to B register
 		ZO | AI, // sum to A register
+	},
+
+	// subtract the number from an address in RAM
+	SUB: {
+		IO | MI,      // instruction to memory
+		RO | BI,      // RAM to B
+		ZO | AI | SU, // sum to A, with subtraction
+	},
+
+	// store the value in the A register in RAM
+	STA: {
+		IO | MI,
+		AO | RI,
 	},
 
 	// set the program counter to the least significant

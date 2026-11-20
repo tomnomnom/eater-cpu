@@ -74,6 +74,12 @@ func parseOp(o string) (uint8, error) {
 	case "ADD":
 		return parseOpWithArg(ADD, p)
 
+	case "SUB":
+		return parseOpWithArg(SUB, p)
+
+	case "STA":
+		return parseOpWithArg(STA, p)
+
 	case "JMP":
 		return parseOpWithArg(JMP, p)
 
