@@ -20,7 +20,7 @@ const (
 	J               // Jump
 )
 
-var flagNames = map[int]string{
+var controlNames = map[int]string{
 	HLT: "HLT",
 	MI:  "MI",
 	RI:  "RI",
@@ -38,19 +38,19 @@ var flagNames = map[int]string{
 	J:   "J",
 }
 
-// a flagHandler associates a function with a flag so that
+// a controlHandler associates a function with a flag so that
 // the function can be called when that flag is set
-type flagHandler struct {
+type controlHandler struct {
 	typ int
 	fn  func(*cpu)
 }
 
-// flagHandlers is an ordered list of functions that
+// controlHandlers is an ordered list of functions that
 // define what happens in a cycle when particular
 // control flags are set. The outputs must come first
 // so that they can write to the bus before the inputs
 // try to read from it.
-var flagHandlers = []flagHandler{
+var controlHandlers = []controlHandler{
 
 	// Outputs
 	{RO, func(c *cpu) { c.bus = c.ram[c.addr] }},
@@ -58,7 +58,7 @@ var flagHandlers = []flagHandler{
 	{AO, func(c *cpu) { c.bus = c.a }},
 	{CO, func(c *cpu) { c.bus = c.pc }},
 	{ZO, func(c *cpu) {
-		if c.flags&SU == 0 {
+		if c.control&SU == 0 {
 			c.bus = c.a + c.b
 		} else {
 			c.bus = c.a - c.b

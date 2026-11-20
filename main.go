@@ -23,13 +23,13 @@ type cpu struct {
 	bus  uint8           // bus
 	out  uint8           // output register
 
-	// flags holds a bitfield representing which
-	// control flags are set. E.g. to set the
+	// control holds a bitfield representing which
+	// control control are set. E.g. to set the
 	// instruction register out and the memory
 	// address register in, it would be set to:
 	//
 	//   IO | MI
-	flags int
+	control int
 
 	clock     chan interface{}
 	cycleDone chan interface{}
@@ -50,22 +50,22 @@ func (c *cpu) run() {
 		// register. Only the most significant nibble
 		// is used to ifentify the instruction
 		if cycles, ok := instructionMap[c.ir&0xF0]; ok {
-			for _, flags := range cycles {
-				c.cycle(flags)
+			for _, control := range cycles {
+				c.cycle(control)
 			}
 		}
 	}
 }
 
-// cycle accepts some flags to set and then calls
-// all of the corresponding flag handlers
-func (c *cpu) cycle(flags int) {
+// cycle accepts some control flags to set and then calls
+// all of the corresponding handlers
+func (c *cpu) cycle(control int) {
 	<-c.clock
 
-	c.flags = flags
+	c.control = control
 
-	for _, h := range flagHandlers {
-		if c.flags&h.typ != 0 {
+	for _, h := range controlHandlers {
+		if c.control&h.typ != 0 {
 			h.fn(c)
 		}
 	}
@@ -85,9 +85,9 @@ func initRAM() map[uint8]uint8 {
 	return ram
 }
 
-// isHalted reports if the halt flag is set
+// isHalted reports if the halt control flag is set
 func (c *cpu) isHalted() bool {
-	return c.flags&HLT != 0
+	return c.control&HLT != 0
 }
 
 // String returns the current state of the cpu as a string.
@@ -104,9 +104,9 @@ func (c *cpu) String() string {
 	fmt.Fprintf(buf, "    B: %s (%d)\n", ledString(c.b), c.b)
 	fmt.Fprintf(buf, "  OUT: %s (%d)\n", ledString(c.out), c.out)
 
-	buf.WriteString("FLAGS: ")
-	for flag, name := range flagNames {
-		if c.flags&flag != 0 {
+	buf.WriteString(" CNTL: ")
+	for flag, name := range controlNames {
+		if c.control&flag != 0 {
 			fmt.Fprintf(buf, "%s ", name)
 		}
 	}
