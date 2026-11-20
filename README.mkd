@@ -1,5 +1,17 @@
 # Eater CPU Emulator
 
-Work in progress.
+A simple emulator (simulator?) for [Ben Eater's 8 Bit Breadboard CPU](https://www.youtube.com/playlist?list=PLowKtXNTBypGqImE405J2565dvjafglHU).
 
-https://www.youtube.com/playlist?list=PLowKtXNTBypGqImE405J2565dvjafglHU
+Run it like this:
+
+```
+go run . add.ram
+```
+
+Or single-step through a program with:
+
+```
+go run . --single-step add.ram
+```
+
+Press return to advance to the next clock cycle.
