@@ -80,6 +80,9 @@ func parseOp(o string) (uint8, error) {
 	case "STA":
 		return parseOpWithArg(STA, p)
 
+	case "LDI":
+		return parseOpWithArg(LDI, p)
+
 	case "JMP":
 		return parseOpWithArg(JMP, p)
 

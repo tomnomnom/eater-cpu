@@ -3,14 +3,15 @@ package main
 // the most significant nibble is all that's
 // used to identify an instruction
 const (
-	NOP  uint8 = 0x00
-	LDA  uint8 = 0x10
-	ADD  uint8 = 0x20
-	SUB  uint8 = 0x30
-	STA  uint8 = 0x40
-	JMP  uint8 = 0x50
-	OUT  uint8 = 0xE0
-	HALT uint8 = 0xF0
+	NOP  uint8 = 0x00 // no-op
+	LDA  uint8 = 0x10 // load memory into A register
+	ADD  uint8 = 0x20 // add value at address to A register
+	SUB  uint8 = 0x30 // subtract value at address from A register
+	STA  uint8 = 0x40 // store A register at address
+	LDI  uint8 = 0x50 // load immediate into A register
+	JMP  uint8 = 0x60 // jump to address
+	OUT  uint8 = 0xE0 // A register to output reguster
+	HALT uint8 = 0xF0 // halt :)
 )
 
 var instructionNames = map[uint8]string{
@@ -19,6 +20,7 @@ var instructionNames = map[uint8]string{
 	ADD:  "ADD",
 	SUB:  "SUB",
 	STA:  "STA",
+	LDI:  "LDI",
 	JMP:  "JMP",
 	OUT:  "OUT",
 	HALT: "HALT",
@@ -58,6 +60,11 @@ var instructionMap = map[uint8][]int{
 	STA: {
 		IO | MI,
 		AO | RI,
+	},
+
+	// store literal value in the A register
+	LDI: {
+		IO | AI,
 	},
 
 	// set the program counter to the least significant
