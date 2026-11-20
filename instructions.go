@@ -10,6 +10,7 @@ const (
 	STA  uint8 = 0x40 // store A register at address
 	LDI  uint8 = 0x50 // load immediate into A register
 	JMP  uint8 = 0x60 // jump to address
+	JZ   uint8 = 0x70 // jump to address if zero flag is set
 	OUT  uint8 = 0xE0 // A register to output reguster
 	HALT uint8 = 0xF0 // halt :)
 )
@@ -22,66 +23,87 @@ var instructionNames = map[uint8]string{
 	STA:  "STA",
 	LDI:  "LDI",
 	JMP:  "JMP",
+	JZ:   "JZ",
 	OUT:  "OUT",
 	HALT: "HALT",
 }
 
-// instructionMap is a lookup table that defines
-// how the control flags should be set for each
-// cycle. Instructions can take a variable number
-// of cycles.
-var instructionMap = map[uint8][]int{
+// getMicrocode returns the steps for each cycle.
+// Instructions can take a variable number of cycles.
+func (c *cpu) getMicrocode(inst uint8) []int {
+
+	switch inst {
 
 	// no-op
-	NOP: {},
+	case NOP:
+		return []int{}
 
 	// load from an address RAM into the A register
-	LDA: {
-		IO | MI, // instruction register to memory address register
-		RO | AI, // RAM to A register
-	},
+	case LDA:
+		return []int{
+			IO | MI, // instruction register to memory address register
+			RO | AI, // RAM to A register
+		}
 
 	// add the number from an address in RAM to the A register,
 	// via the B register
-	ADD: {
-		IO | MI, // instruction register to memory address register
-		RO | BI, // RAM to B register
-		ZO | AI, // sum to A register
-	},
+	case ADD:
+		return []int{
+			IO | MI,      // instruction register to memory address register
+			RO | BI,      // RAM to B register
+			ZO | AI | FI, // sum to A register and flags register
+		}
 
 	// subtract the number from an address in RAM
-	SUB: {
-		IO | MI,      // instruction to memory
-		RO | BI,      // RAM to B
-		ZO | AI | SU, // sum to A, with subtraction
-	},
+	case SUB:
+		return []int{
+			IO | MI,           // instruction to memory
+			RO | BI,           // RAM to B
+			ZO | AI | FI | SU, // sum to A register and flags register, with subtraction
+		}
 
 	// store the value in the A register in RAM
-	STA: {
-		IO | MI,
-		AO | RI,
-	},
+	case STA:
+		return []int{
+			IO | MI,
+			AO | RI,
+		}
 
 	// store literal value in the A register
-	LDI: {
-		IO | AI,
-	},
+	case LDI:
+		return []int{
+			IO | AI,
+		}
 
 	// set the program counter to the least significant
 	// nibble of the instruction register
-	JMP: {
-		IO | J,
-	},
+	case JMP:
+		return []int{
+			IO | J,
+		}
+
+	// jump if the zero flag is set
+	case JZ:
+		if c.zero {
+			return []int{IO | J}
+		} else {
+			return []int{}
+		}
 
 	// load from the A register to the output register
-	OUT: {
-		AO | OI, // A register to output register
-	},
+	case OUT:
+		return []int{
+			AO | OI, // A register to output register
+		}
 
 	// halt the CPU
-	HALT: {
-		HLT, // Halt :)
-	},
+	case HALT:
+		return []int{
+			HLT, // Halt :)
+		}
+	}
+
+	return []int{}
 }
 
 // op is a convenience function for combining an

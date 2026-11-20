@@ -86,6 +86,9 @@ func parseOp(o string) (uint8, error) {
 	case "JMP":
 		return parseOpWithArg(JMP, p)
 
+	case "JZ":
+		return parseOpWithArg(JZ, p)
+
 	case "OUT":
 		return OUT, nil
 

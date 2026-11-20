@@ -23,6 +23,10 @@ type cpu struct {
 	bus  uint8           // bus
 	out  uint8           // output register
 
+	// result flags
+	zero  bool
+	carry bool
+
 	// control holds a bitfield representing which
 	// control control are set. E.g. to set the
 	// instruction register out and the memory
@@ -49,10 +53,9 @@ func (c *cpu) run() {
 		// instruction now loaded into the instruction
 		// register. Only the most significant nibble
 		// is used to ifentify the instruction
-		if cycles, ok := instructionMap[c.ir&0xF0]; ok {
-			for _, control := range cycles {
-				c.cycle(control)
-			}
+		cycles := c.getMicrocode(c.ir & 0xF0)
+		for _, control := range cycles {
+			c.cycle(control)
 		}
 	}
 }

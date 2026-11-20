@@ -18,6 +18,7 @@ const (
 	CE              // Counter Enable
 	CO              // Counter Out
 	J               // Jump
+	FI              // Flags Register In
 )
 
 var controlNames = map[int]string{
@@ -72,6 +73,10 @@ var controlHandlers = []controlHandler{
 	{RI, func(c *cpu) { c.ram[c.addr] = c.bus }},
 	{II, func(c *cpu) { c.ir = c.bus }},
 	{AI, func(c *cpu) { c.a = c.bus }},
+	{FI, func(c *cpu) {
+		// TODO: carry flag?
+		c.zero = c.bus == 0
+	}},
 
 	// Misc control
 	{HLT, func(c *cpu) {}},
