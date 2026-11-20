@@ -15,7 +15,7 @@ var instructionNames = map[uint8]string{
 	NOP:  "NOP",
 	LDA:  "LDA",
 	ADD:  "ADD",
-	JMP:  "ADD",
+	JMP:  "JMP",
 	OUT:  "OUT",
 	HALT: "HALT",
 }
@@ -59,7 +59,8 @@ var instructionMap = map[uint8][]int{
 
 // op is a convenience function for combining an
 // instruction and an argument. E.g.
-//   op(LDA, 15) -> 0x1E
+//
+//	op(LDA, 15) -> 0x1E
 func op(instr uint8, arg uint8) uint8 {
 	return instr | (arg & 0x0F)
 }

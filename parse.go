@@ -33,7 +33,8 @@ func parseRAMFile(r io.Reader) (map[uint8]uint8, error) {
 }
 
 // parseRAMLine parses a whole line from the RAM file, e.g:
-//   02: LDA 14
+//
+//	02: LDA 14
 func parseRAMLine(l string) (uint8, uint8, error) {
 
 	p := strings.Split(l, ":")
@@ -57,7 +58,8 @@ func parseRAMLine(l string) (uint8, uint8, error) {
 
 // parseOp parses and decodes the second portion of line from the
 // RAM file. E.g:
-//   LDA 14
+//
+//	LDA 14
 func parseOp(o string) (uint8, error) {
 	p := strings.Split(o, " ")
 
@@ -73,7 +75,7 @@ func parseOp(o string) (uint8, error) {
 		return parseOpWithArg(ADD, p)
 
 	case "JMP":
-		return parseOpWithArg(LDA, p)
+		return parseOpWithArg(JMP, p)
 
 	case "OUT":
 		return OUT, nil
@@ -94,7 +96,9 @@ func parseOp(o string) (uint8, error) {
 }
 
 // parseOpWithArg converts the split, textual representation of an op, e.g.:
-//   [LDA, 14]
+//
+//	[LDA, 14]
+//
 // into the actual uint8 needed by the CPU
 func parseOpWithArg(instr uint8, p []string) (uint8, error) {
 	if len(p) != 2 {
